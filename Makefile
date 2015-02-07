@@ -1,9 +1,9 @@
 # Project: ChipmunkDB
 
-CPP      = g++
+CPP      = g++ -D AMD64
 OBJ      = Obj/main.o Obj/memory_dispatcher.o Obj/memory_bank.o Obj/logger.o Obj/helpers.o
 LINKOBJ  = Obj/main.o Obj/memory_dispatcher.o Obj/memory_bank.o Obj/logger.o Obj/helpers.o
-LIBS     = -L"/lib" -static "/lib/libboost_system.dll.a" "/lib/libboost_thread.dll.a"
+LIBS     = -L"/lib" -L"/usr/lib" -static "/usr/lib/libboost_system.a" "/usr/lib/libboost_thread.a"
 INCS     = -I"/usr/include"
 BIN      = ./Bin/ChipmunkDB
 CXXFLAGS = $(CXXINCS) -lpthread
@@ -18,10 +18,10 @@ clean: clean-custom
 	${RM} $(OBJ) $(BIN)
 
 $(BIN): $(OBJ)
-	$(CPP) $(LINKOBJ) -o $(BIN) $(LIBS)
+	$(CPP) $(LINKOBJ) -o $(BIN) $(LIBS) -lpthread
 
 Obj/main.o: Source/main.cpp
-	$(CPP) -c Source/main.cpp -o Obj/main.o $(CXXFLAGS)
+	$(CPP) -c Source/main.cpp -o Obj/main.o
 
 Obj/memory_dispatcher.o: Source/memory_dispatcher.cpp Headers/memory_dispatcher.h
 	$(CPP) -c Source/memory_dispatcher.cpp -o Obj/memory_dispatcher.o
