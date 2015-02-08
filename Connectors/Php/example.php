@@ -30,9 +30,9 @@ $response = $wss->set("tester4",array('test1'=>'value1','test2'=>'value5'),$data
 $response = $wss->get('tester1');
 for($i = 0 ; $i < 10000 ; $i++) {
     $response = $wss->set("tester$i",array('test1'=>'value1','test2'=>'value5'),$data,$ensureSave=true);
-    usleep(500*1000);
+    usleep(100*1000);
 }
-
+ 
 headline("OR with subset: should return tester3, tester4");
 var_dump($wss->findOr(array(
 								new searchParameter('test1','=','value1')

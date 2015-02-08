@@ -8,6 +8,7 @@
 #include "journal_entry.h"
 #include "memory_bank.h"
 #include <map>
+#include <deque>
 #define byte unsigned char
 #include <dirent.h>
 #include <unistd.h>
@@ -28,8 +29,10 @@ class memory_dispatcher {
 		static void load();
 		static int recv_2(int fd, char *buffer, int len, int flags, int to);
 		static void send_data(int fd, byte* entry, int len);
-		static void userHandler(int sockfd);
+		static void userHandler();
 		static void listenerFunc(string a);
+
+		static deque<int> sockets_waiting;
 
 		static memory_bank main_memory;
 };

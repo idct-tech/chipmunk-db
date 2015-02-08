@@ -1,9 +1,11 @@
 #include "../Headers/memory_dispatcher.h"
 
 memory_bank memory_dispatcher::main_memory;
+deque<int> memory_dispatcher::sockets_waiting;
 
 void memory_dispatcher::listenerFunc(string a) {
 
+		boost::thread workerThread(&userHandler);
 		int sockfd;
 		struct sockaddr_in servaddr, cliaddr;
 		socklen_t len;
@@ -20,8 +22,19 @@ void memory_dispatcher::listenerFunc(string a) {
 		for (;;)
 		{
 			logger::log("accepting...");
-			int sock_connect = accept(sockfd, NULL, NULL);
-			boost::thread listenerThread(&userHandler, sock_connect);
+
+			try {
+				int sock_connect;
+				logger::log("got var...");
+				sock_connect = accept(sockfd, NULL, NULL);
+				logger::log("got thr...");
+				sockets_waiting.push_back(sock_connect);
+			}
+			catch (...) {
+				cout << "\n" << strerror(errno);
+			}
+			logger::log("THREAD ended");
+
 			//close(sockfd);
 			/*
 			for (;;)
@@ -105,49 +118,54 @@ void memory_dispatcher::send_data(int sockfd, byte* data, int len) {
 	close(sockfd);
 }
 
-void memory_dispatcher::userHandler(int sockfd)
+void memory_dispatcher::userHandler()
 {
-	int n;
-	char mesg[INPUT_BUFFER];// = new char[INPUT_BUFFER];
+	while(true) {
+		while (sockets_waiting.size() == 0) {}
 
-	string message = "";
+		int sockfd = sockets_waiting[0];
+		sockets_waiting.pop_front();
+		int n;
+		char mesg[INPUT_BUFFER];// = new char[INPUT_BUFFER];
 
-	while (true) {
-		n = recv(sockfd, mesg, INPUT_BUFFER, MSG_PEEK | MSG_DONTWAIT);
-		if (n < 1)
-			break;
+		string message = "";
 
-		memset(mesg, '\0', INPUT_BUFFER);
-		n = memory_dispatcher::recv_2(sockfd, mesg, INPUT_BUFFER, 0, 5000);
-		message += string(mesg, n);
+		while (true) {
+			n = recv(sockfd, mesg, INPUT_BUFFER, MSG_PEEK | MSG_DONTWAIT);
+			if (n < 1)
+				break;
 
-		if (n < 1)
-			break;
+			memset(mesg, '\0', INPUT_BUFFER);
+			n = memory_dispatcher::recv_2(sockfd, mesg, INPUT_BUFFER, 0, 5000);
+			message += string(mesg, n);
 
-	}
-	char* msg = (char*)message.c_str();
-	char* t_ident = msg + 1;
-	if (msg[0] == 'G')
-	{
-		logger::log("GET action for: " + helpers::chtos(t_ident));
-		memory_entry temp = main_memory.get(t_ident);
-		if (temp.data == NULL)
-		{
-			int m = send(sockfd, "NODATA", 7, 0);
+			if (n < 1)
+				break;
+
 		}
-		else
+		char* msg = (char*)message.c_str();
+		char* t_ident = msg + 1;
+		if (msg[0] == 'G')
 		{
-			memory_dispatcher::send_data(sockfd, temp.data,temp.length);
-			//NOTOK
-			/*
-			int max = temp.length;
-			int current = 0;
-			int finish = 0;
-			for (current = 0; current < max; current += INPUT_BUFFER) {
+			logger::log("GET action for: " + helpers::chtos(t_ident));
+			memory_entry temp = main_memory.get(t_ident);
+			if (temp.data == NULL)
+			{
+				int m = send(sockfd, "NODATA", 7, 0);
+			}
+			else
+			{
+				memory_dispatcher::send_data(sockfd, temp.data, temp.length);
+				//NOTOK
+				/*
+				int max = temp.length;
+				int current = 0;
+				int finish = 0;
+				for (current = 0; current < max; current += INPUT_BUFFER) {
 				finish = current + INPUT_BUFFER;
 				if (finish > max) {
 
-					finish = max ;
+				finish = max ;
 				}
 
 				finish -= current;
@@ -155,101 +173,100 @@ void memory_dispatcher::userHandler(int sockfd)
 				bzero(sub_mesg, INPUT_BUFFER);
 				memcpy(sub_mesg, &temp.data[current], finish);
 				send(sockfd, sub_mesg, finish, 0);
+				}
+				close(sockfd);
+				*/
 			}
-			close(sockfd);
-			*/
 		}
-	}
-	else if (msg[0] == 'O' || msg[0] == 'A') {
+		else if (msg[0] == 'O' || msg[0] == 'A') {
 
-		char operation = msg[0];
-		char* msg_ptr = msg + 1;
+			char operation = msg[0];
+			char* msg_ptr = msg + 1;
 
-		vector<string> msg_parts = helpers::explode(msg_ptr, '\n');
-		string query = msg_parts[0];
+			vector<string> msg_parts = helpers::explode(msg_ptr, '\n');
+			string query = msg_parts[0];
 
-		string subset = "";
-		if (msg_parts.size() > 1) {
-			subset = msg_parts[1];
-		}
+			string subset = "";
+			if (msg_parts.size() > 1) {
+				subset = msg_parts[1];
+			}
 
-		string response;
-		int len = 0;
-		switch (operation) {
-		case 'O':
+			string response;
+			int len = 0;
+			switch (operation) {
+			case 'O':
 				logger::log("FIND_OR action...");
 				response = main_memory.find_or(query, subset);
 				len = response.size();
 				logger::log("...finished (" + logger::itos(len) + ")");
-			break;
-		case 'A':
+				break;
+			case 'A':
 				logger::log("FIND_AND action...");
 				response = main_memory.find_and(query, subset);
 				len = response.size();
 				logger::log("...finished (" + logger::itos(len) + ")");
-			break;
-		}
-
-		int m = -1;
-		if (len > 0) {
-			//NOTOK
-			memory_dispatcher::send_data(sockfd, (unsigned char*)response.c_str() + 1, len);
-			//m = send(sockfd, response.c_str() + 1, len, 0);
-			int tmp = errno;
-			if (m < 0){
-				fprintf(stderr, "socket: %s , errno %d\n", strerror(tmp), tmp);
+				break;
 			}
+
+			int m = -1;
+			if (len > 0) {
+				//NOTOK
+				memory_dispatcher::send_data(sockfd, (unsigned char*)response.c_str() + 1, len);
+				//m = send(sockfd, response.c_str() + 1, len, 0);
+				int tmp = errno;
+				if (m < 0){
+					fprintf(stderr, "socket: %s , errno %d\n", strerror(tmp), tmp);
+				}
+			}
+			else {
+				//OK
+				m = send(sockfd, "NODATA", 7, 0);
+			}
+			logger::log("...sent (" + logger::itos(m) + ")");
+
+
 		}
-		else {
+		else if (msg[0] == 'S'){
+			//getting the ID
+			int where = 0;
+			while (t_ident[where] != '|')
+				++where;
+			char* ident = new char[where];
+			ident[where] = '\0';
+
+			where = 0;
+			while (t_ident[where] != '|')
+			{
+				ident[where] = t_ident[where];
+				++where;
+			}
+			logger::log("SET action for: " + helpers::chtos(ident));
+
+			//getting the METADATA
+			int whereAfterIdent = where;
+			while (t_ident[++where] != '|')
+			{
+			}
+			char* metadata = new char[where - whereAfterIdent + 2];
+
+			where = whereAfterIdent;
+
+			while (t_ident[++where] != '|') {
+				metadata[where - whereAfterIdent - 1] = t_ident[where];
+			}
+			metadata[where - whereAfterIdent - 1] = '\0';
+			main_memory.add(ident, (char*)metadata, (byte*)(msg + where + 2), message.size() - where - 2);
 			//OK
-			m = send(sockfd, "NODATA", 7, 0);
+			send(sockfd, "SAVED", 6, 0);
 		}
-		logger::log("...sent (" + logger::itos(m) + ")");
+		else if (msg[0] == 'R'){
+			main_memory.remove(t_ident);
+			logger::log("DEL action for: " + helpers::chtos(t_ident));
 
-
+			//OK
+			send(sockfd, "REMVD", 6, 0);
+		}
 	}
-	else if (msg[0] == 'S'){
-		//getting the ID
-		int where = 0;
-		while (t_ident[where] != '|')
-			++where;
-		char* ident = new char[where];
-		ident[where] = '\0';
-
-		where = 0;
-		while (t_ident[where] != '|')
-		{
-			ident[where] = t_ident[where];
-			++where;
-		}
-		logger::log("SET action for: " + helpers::chtos(ident));
-
-		//getting the METADATA
-		int whereAfterIdent = where;
-		while (t_ident[++where] != '|')
-		{
-		}
-		char* metadata = new char[where - whereAfterIdent + 2];
-
-		where = whereAfterIdent;
-
-		while (t_ident[++where] != '|') {
-			metadata[where - whereAfterIdent - 1] = t_ident[where];
-		}
-		metadata[where - whereAfterIdent - 1] = '\0';
-		main_memory.add(ident, (char*)metadata, (byte*)(msg + where + 2), message.size() - where - 2);
-		//OK
-		send(sockfd, "SAVED", 6, 0);
-	}
-	else if (msg[0] == 'R'){
-		main_memory.remove(t_ident);
-		logger::log("DEL action for: " + helpers::chtos(t_ident));
-
-		//OK
-		send(sockfd, "REMVD", 6, 0);
-	}
-
-	logger::log("Thread dead");
 }
 
 void memory_dispatcher::saverFunc() {
