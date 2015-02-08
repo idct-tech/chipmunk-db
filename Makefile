@@ -1,6 +1,6 @@
 # Project: ChipmunkDB
 
-CPP      = g++ -D AMD64 -g
+CPP      = g++ -D AMD64
 OBJ      = Obj/main.o Obj/memory_dispatcher.o Obj/memory_bank.o Obj/logger.o Obj/helpers.o
 LINKOBJ  = Obj/main.o Obj/memory_dispatcher.o Obj/memory_bank.o Obj/logger.o Obj/helpers.o
 LIBS     = -L"/lib" -L"/usr/lib" -static "/usr/lib/libboost_system.a" "/usr/lib/libboost_thread.a"

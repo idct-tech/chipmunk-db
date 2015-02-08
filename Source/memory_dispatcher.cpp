@@ -4,8 +4,6 @@ memory_bank memory_dispatcher::main_memory;
 
 void memory_dispatcher::listenerFunc(string a) {
 
-	for (;;)
-	{
 		int sockfd;
 		struct sockaddr_in servaddr, cliaddr;
 		socklen_t len;
@@ -19,34 +17,36 @@ void memory_dispatcher::listenerFunc(string a) {
 		bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
 		logger::log("listening...");
 		listen(sockfd, 1);
-		logger::log("accepting...");
-		int sock_connect = accept(sockfd, NULL, NULL);
-		boost::thread listenerThread(&userHandler, sock_connect);
-		close(sockfd);
-		/*
 		for (;;)
 		{
+			logger::log("accepting...");
+			int sock_connect = accept(sockfd, NULL, NULL);
+			boost::thread listenerThread(&userHandler, sock_connect);
+			//close(sockfd);
+			/*
+			for (;;)
+			{
 
 
 
-			logger::log("waiting..." + logger::itos(sock_connect));
-			int n;
-			char mesg[INPUT_BUFFER];
-			string message = "";
-			do {
-				n = recv(sock_connect, &mesg, 1, 0);
-				if (n > 0) {
-					logger::log("got block: " + helpers::chtos(mesg));
-					message += helpers::chtos(mesg);
-				}
-			} while (n > 0);
+				logger::log("waiting..." + logger::itos(sock_connect));
+				int n;
+				char mesg[INPUT_BUFFER];
+				string message = "";
+				do {
+					n = recv(sock_connect, &mesg, 1, 0);
+					if (n > 0) {
+						logger::log("got block: " + helpers::chtos(mesg));
+						message += helpers::chtos(mesg);
+					}
+				} while (n > 0);
 
-			logger::log("parsing..." + logger::itos(n));
+				logger::log("parsing..." + logger::itos(n));
 
-			mesg[n] = 0;
+				mesg[n] = 0;
+			}
+			*/
 		}
-		*/
-	}
 }
 
 int memory_dispatcher::recv_2(int fd, char *buffer, int len, int flags, int to) {
