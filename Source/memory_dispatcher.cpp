@@ -28,8 +28,15 @@ void memory_dispatcher::listenerFunc(string a) {
 			try {
 				int sock_connect;
 				sock_connect = accept(sockfd, NULL, NULL);
-				waiting++;
-				sockets_waiting.push(sock_connect);
+				if (sock_connect == -1) {
+					cout << "\n" << strerror(errno);
+					break;
+
+				}
+				else {
+					waiting++;
+					sockets_waiting.push(sock_connect);
+				}
 			}
 			catch (...) {
 				cout << "\n" << strerror(errno);
@@ -155,6 +162,7 @@ void memory_dispatcher::userHandler()
 			if (temp.data == NULL)
 			{
 				int m = send(sockfd, "NODATA", 7, 0);
+				close(sockfd);
 			}
 			else
 			{
@@ -224,6 +232,7 @@ void memory_dispatcher::userHandler()
 			else {
 				//OK
 				m = send(sockfd, "NODATA", 7, 0);
+				close(sockfd);
 			}
 			logger::log("...sent (" + logger::itos(m) + ")");
 
@@ -261,6 +270,7 @@ void memory_dispatcher::userHandler()
 			main_memory.add(ident, (char*)metadata, (byte*)(msg + where + 2), message.size() - where - 2);
 			//OK
 			send(sockfd, "SAVED", 6, 0);
+			close(sockfd);
 		}
 		else if (msg[0] == 'R'){
 			main_memory.remove(t_ident);
@@ -268,6 +278,7 @@ void memory_dispatcher::userHandler()
 
 			//OK
 			send(sockfd, "REMVD", 6, 0);
+			close(sockfd);
 		}
 	}
 }
