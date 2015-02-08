@@ -2,7 +2,7 @@
 
 memory_bank memory_dispatcher::main_memory;
 queue<int> memory_dispatcher::sockets_waiting;
-int waiting;
+int memory_dispatcher::waiting;
 
 void memory_dispatcher::listenerFunc(string a) {
 
@@ -27,11 +27,9 @@ void memory_dispatcher::listenerFunc(string a) {
 
 			try {
 				int sock_connect;
-				logger::log("got var...");
 				sock_connect = accept(sockfd, NULL, NULL);
-				logger::log("got thr...");
 				waiting++;
-				sockets_waiting.push_back(sock_connect);
+				sockets_waiting.push(sock_connect);
 			}
 			catch (...) {
 				cout << "\n" << strerror(errno);
