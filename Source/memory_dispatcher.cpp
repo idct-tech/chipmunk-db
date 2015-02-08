@@ -124,7 +124,7 @@ void memory_dispatcher::userHandler()
 {
 	while(true) {
 		while (sockets_waiting.empty() == true) {}
-
+		usleep(25);
 		int sockfd = sockets_waiting.front();
 		sockets_waiting.pop();
 		logger::log("WORKER THREAD running: " + logger::itos(sockfd) + " WAITING: " + logger::itos(waiting--));
@@ -139,7 +139,7 @@ void memory_dispatcher::userHandler()
 				break;
 
 			memset(mesg, '\0', INPUT_BUFFER);
-			n = memory_dispatcher::recv_2(sockfd, mesg, INPUT_BUFFER, 0, 5000);
+			n = recv(sockfd, mesg, INPUT_BUFFER, 0);
 			message += string(mesg, n);
 
 			if (n < 1)
