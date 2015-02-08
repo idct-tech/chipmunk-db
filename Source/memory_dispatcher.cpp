@@ -1,13 +1,22 @@
 #include "../Headers/memory_dispatcher.h"
 
 memory_bank memory_dispatcher::main_memory;
-queue<int> memory_dispatcher::sockets_waiting;
+map<int,queue<int> > memory_dispatcher::sockets_waiting;
 int memory_dispatcher::waiting;
+deque<boost::thread*> memory_dispatcher::worker_threads;
 
 void memory_dispatcher::listenerFunc(string a) {
 
-	waiting = 0;
-		boost::thread workerThread(&userHandler);
+		waiting = 0;
+
+		int worker_threads = 2;
+		for (int i = 0; i < worker_threads; i++) {
+
+			memory_dispatcher::worker_threads.push_back(new boost::thread(userHandler,i));
+		}
+
+	//	boost::thread worker1(userHandler);
+	//	boost::thread worker2(userHandler);
 		int sockfd;
 		struct sockaddr_in servaddr, cliaddr;
 		socklen_t len;
@@ -21,6 +30,7 @@ void memory_dispatcher::listenerFunc(string a) {
 		bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
 		logger::log("listening...");
 		listen(sockfd, 1);
+		int current_worker = 0;
 		for (;;)
 		{
 			logger::log("accepting...");
@@ -35,7 +45,10 @@ void memory_dispatcher::listenerFunc(string a) {
 				}
 				else {
 					waiting++;
-					sockets_waiting.push(sock_connect);
+					sockets_waiting[current_worker++].push(sock_connect);
+					if (current_worker >= worker_threads) {
+						current_worker = 0;
+					}
 				}
 			}
 			catch (...) {
@@ -127,13 +140,12 @@ void memory_dispatcher::send_data(int sockfd, byte* data, int len) {
 	close(sockfd);
 }
 
-void memory_dispatcher::userHandler()
+void memory_dispatcher::userHandler(int worker)
 {
 	while(true) {
-		while (sockets_waiting.empty() == true) {}
-		usleep(25);
-		int sockfd = sockets_waiting.front();
-		sockets_waiting.pop();
+		while (sockets_waiting[worker].empty() == true) {}
+		int sockfd = sockets_waiting[worker].front();
+		sockets_waiting[worker].pop();
 		logger::log("WORKER THREAD running: " + logger::itos(sockfd) + " WAITING: " + logger::itos(waiting--));
 		int n;
 		char mesg[INPUT_BUFFER];// = new char[INPUT_BUFFER];
