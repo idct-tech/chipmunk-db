@@ -1,10 +1,12 @@
 #include "../Headers/memory_dispatcher.h"
 
 memory_bank memory_dispatcher::main_memory;
-deque<int> memory_dispatcher::sockets_waiting;
+queue<int> memory_dispatcher::sockets_waiting;
+int waiting;
 
 void memory_dispatcher::listenerFunc(string a) {
 
+	waiting = 0;
 		boost::thread workerThread(&userHandler);
 		int sockfd;
 		struct sockaddr_in servaddr, cliaddr;
@@ -28,12 +30,13 @@ void memory_dispatcher::listenerFunc(string a) {
 				logger::log("got var...");
 				sock_connect = accept(sockfd, NULL, NULL);
 				logger::log("got thr...");
+				waiting++;
 				sockets_waiting.push_back(sock_connect);
 			}
 			catch (...) {
 				cout << "\n" << strerror(errno);
 			}
-			logger::log("THREAD ended");
+
 
 			//close(sockfd);
 			/*
@@ -60,6 +63,7 @@ void memory_dispatcher::listenerFunc(string a) {
 			}
 			*/
 		}
+
 }
 
 int memory_dispatcher::recv_2(int fd, char *buffer, int len, int flags, int to) {
@@ -121,10 +125,11 @@ void memory_dispatcher::send_data(int sockfd, byte* data, int len) {
 void memory_dispatcher::userHandler()
 {
 	while(true) {
-		while (sockets_waiting.size() == 0) {}
+		while (sockets_waiting.empty() == true) {}
 
-		int sockfd = sockets_waiting[0];
-		sockets_waiting.pop_front();
+		int sockfd = sockets_waiting.front();
+		sockets_waiting.pop();
+		logger::log("WORKER THREAD running: " + logger::itos(sockfd) + " WAITING: " + logger::itos(waiting--));
 		int n;
 		char mesg[INPUT_BUFFER];// = new char[INPUT_BUFFER];
 

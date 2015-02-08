@@ -8,7 +8,7 @@
 #include "journal_entry.h"
 #include "memory_bank.h"
 #include <map>
-#include <deque>
+#include <queue>
 #define byte unsigned char
 #include <dirent.h>
 #include <unistd.h>
@@ -32,7 +32,8 @@ class memory_dispatcher {
 		static void userHandler();
 		static void listenerFunc(string a);
 
-		static deque<int> sockets_waiting;
+		static queue<int> sockets_waiting;
+		static int waiting;
 
 		static memory_bank main_memory;
 };
