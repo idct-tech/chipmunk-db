@@ -15,7 +15,7 @@ vector<string> helpers::explode(const string& str, const char delimiter)
 }
 
 string helpers::chtos(char* buf) {
-	int max = 256;
+	int max = 1024;
 	size_t len = 0;
 	while ((len < max) && (buf[len] != '\0' && buf[len] != EOF)) {
 		len++;

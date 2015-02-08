@@ -6,29 +6,126 @@ void memory_dispatcher::listenerFunc(string a) {
 
 	for (;;)
 	{
-		int sockfd, n;
+		int sockfd;
 		struct sockaddr_in servaddr, cliaddr;
 		socklen_t len;
-		char mesg[INPUT_BUFFER];
+
 		char tosend[10];
-		sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+		sockfd = socket(AF_INET, SOCK_STREAM, 0);
 		bzero(&servaddr, sizeof(servaddr));
 		servaddr.sin_family = AF_INET;
 		servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
 		servaddr.sin_port = htons(8906);
 		bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+		logger::log("listening...");
+		listen(sockfd, 1);
+		logger::log("accepting...");
+		int sock_connect = accept(sockfd, NULL, NULL);
+		boost::thread listenerThread(&userHandler, sock_connect);
+		close(sockfd);
+		/*
 		for (;;)
 		{
-			len = sizeof(cliaddr);
-			n = recvfrom(sockfd, mesg, INPUT_BUFFER, 0, (struct sockaddr *)&cliaddr, &len);
-			boost::thread listenerThread(&userHandler, sockfd, mesg, cliaddr, n, len);
+
+
+
+			logger::log("waiting..." + logger::itos(sock_connect));
+			int n;
+			char mesg[INPUT_BUFFER];
+			string message = "";
+			do {
+				n = recv(sock_connect, &mesg, 1, 0);
+				if (n > 0) {
+					logger::log("got block: " + helpers::chtos(mesg));
+					message += helpers::chtos(mesg);
+				}
+			} while (n > 0);
+
+			logger::log("parsing..." + logger::itos(n));
+
 			mesg[n] = 0;
 		}
+		*/
 	}
 }
 
-void memory_dispatcher::userHandler(int sockfd, char* msg, sockaddr_in client, int len, int len2)
+int memory_dispatcher::recv_2(int fd, char *buffer, int len, int flags, int to) {
+
+	fd_set readset, tempset;
+	int result, iof = -1;
+	struct timeval tv;
+
+	// Initialize the set
+	FD_ZERO(&readset);
+	FD_SET(fd, &readset);
+
+	// Initialize time out struct
+	tv.tv_sec = 0;
+	tv.tv_usec = to * 1000;
+	// select()
+	result = select(fd + 1, &readset, NULL, NULL, NULL);
+
+	// Check status
+	if (result < 0)
+		return -1;
+	else if (result > 0 && FD_ISSET(fd, &readset)) {
+		// Set non-blocking mode
+		if ((iof = fcntl(fd, F_GETFL, 0)) != -1)
+			fcntl(fd, F_SETFL, iof | O_NONBLOCK);
+		// receive
+		result = recv(fd, buffer, len, flags);
+		// set as before
+		if (iof != -1)
+			fcntl(fd, F_SETFL, iof);
+		return result;
+	}
+	return -2;
+}
+
+void memory_dispatcher::send_data(int sockfd, byte* data, int len) {
+	//NOTOK
+	char sub_mesg[INPUT_BUFFER];
+
+	int max = len;
+	int current = 0;
+	int finish = 0;
+	for (current = 0; current < max; current += INPUT_BUFFER) {
+		finish = current + INPUT_BUFFER;
+		if (finish > max) {
+
+			finish = max;
+		}
+
+		finish -= current;
+
+		bzero(sub_mesg, INPUT_BUFFER);
+		memcpy(sub_mesg, &data[current], finish);
+		send(sockfd, sub_mesg, finish, 0);
+	}
+	close(sockfd);
+}
+
+void memory_dispatcher::userHandler(int sockfd)
 {
+	int n;
+	char mesg[INPUT_BUFFER];// = new char[INPUT_BUFFER];
+
+	string message = "";
+
+	while (true) {
+		n = recv(sockfd, mesg, INPUT_BUFFER, MSG_PEEK | MSG_DONTWAIT);
+		if (n < 1)
+			break;
+
+		memset(mesg, '\0', INPUT_BUFFER);
+		n = memory_dispatcher::recv_2(sockfd, mesg, INPUT_BUFFER, 0, 5000);
+		message += string(mesg, n);
+
+		if (n < 1)
+			break;
+
+	}
+	char* msg = (char*)message.c_str();
 	char* t_ident = msg + 1;
 	if (msg[0] == 'G')
 	{
@@ -36,11 +133,31 @@ void memory_dispatcher::userHandler(int sockfd, char* msg, sockaddr_in client, i
 		memory_entry temp = main_memory.get(t_ident);
 		if (temp.data == NULL)
 		{
-			int m = sendto(sockfd, "NODATA", 7, 0, (struct sockaddr *)&client, len2);
+			int m = send(sockfd, "NODATA", 7, 0);
 		}
 		else
 		{
-			sendto(sockfd, temp.data, temp.length, 0, (struct sockaddr *)&client, len2);
+			memory_dispatcher::send_data(sockfd, temp.data,temp.length);
+			//NOTOK
+			/*
+			int max = temp.length;
+			int current = 0;
+			int finish = 0;
+			for (current = 0; current < max; current += INPUT_BUFFER) {
+				finish = current + INPUT_BUFFER;
+				if (finish > max) {
+
+					finish = max ;
+				}
+
+				finish -= current;
+
+				bzero(sub_mesg, INPUT_BUFFER);
+				memcpy(sub_mesg, &temp.data[current], finish);
+				send(sockfd, sub_mesg, finish, 0);
+			}
+			close(sockfd);
+			*/
 		}
 	}
 	else if (msg[0] == 'O' || msg[0] == 'A') {
@@ -56,29 +173,39 @@ void memory_dispatcher::userHandler(int sockfd, char* msg, sockaddr_in client, i
 			subset = msg_parts[1];
 		}
 
-		char* response;
+		string response;
+		int len = 0;
 		switch (operation) {
 		case 'O':
 				logger::log("FIND_OR action...");
 				response = main_memory.find_or(query, subset);
-				logger::log("...finished");
+				len = response.size();
+				logger::log("...finished (" + logger::itos(len) + ")");
 			break;
 		case 'A':
 				logger::log("FIND_AND action...");
 				response = main_memory.find_and(query, subset);
-				logger::log("...finished");
+				len = response.size();
+				logger::log("...finished (" + logger::itos(len) + ")");
 			break;
 		}
 
-
-		int len = 0;
-		len = strlen(response);
+		int m = -1;
 		if (len > 0) {
-			int m = sendto(sockfd, response + 1, len - 1, 0, (struct sockaddr *)&client, len2);
+			//NOTOK
+			memory_dispatcher::send_data(sockfd, (unsigned char*)response.c_str() + 1, len);
+			//m = send(sockfd, response.c_str() + 1, len, 0);
+			int tmp = errno;
+			if (m < 0){
+				fprintf(stderr, "socket: %s , errno %d\n", strerror(tmp), tmp);
+			}
 		}
 		else {
-			int m = sendto(sockfd, "NODATA", 7, 0, (struct sockaddr *)&client, len2);
+			//OK
+			m = send(sockfd, "NODATA", 7, 0);
 		}
+		logger::log("...sent (" + logger::itos(m) + ")");
+
 
 	}
 	else if (msg[0] == 'S'){
@@ -110,14 +237,19 @@ void memory_dispatcher::userHandler(int sockfd, char* msg, sockaddr_in client, i
 			metadata[where - whereAfterIdent - 1] = t_ident[where];
 		}
 		metadata[where - whereAfterIdent - 1] = '\0';
-		main_memory.add(ident, (char*)metadata, (byte*)(msg + where + 2), len - where - 2);
-		sendto(sockfd, "SAVED", 6, 0, (struct sockaddr *)&client, len2);
+		main_memory.add(ident, (char*)metadata, (byte*)(msg + where + 2), message.size() - where - 2);
+		//OK
+		send(sockfd, "SAVED", 6, 0);
 	}
 	else if (msg[0] == 'R'){
 		main_memory.remove(t_ident);
 		logger::log("DEL action for: " + helpers::chtos(t_ident));
-		sendto(sockfd, "REMVD", 6, 0, (struct sockaddr *)&client, len2);
+
+		//OK
+		send(sockfd, "REMVD", 6, 0);
 	}
+
+	logger::log("Thread dead");
 }
 
 void memory_dispatcher::saverFunc() {

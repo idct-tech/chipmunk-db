@@ -80,7 +80,7 @@ bool memory_bank::add(string identifier, string metadata, byte* data, size_t dat
 		return true;
 	}
 
-char* memory_bank::find_or(string metadata, string subset)
+string memory_bank::find_or(string metadata, string subset)
 	{
 		map<string, metadata_search_instruction> metadata_map = parse_metadata_search(metadata);
 		memory_entry data;
@@ -88,7 +88,6 @@ char* memory_bank::find_or(string metadata, string subset)
 		map<string, memory_entry>::iterator iter = itemsAll.begin();
 		vector<string> subset_elements = split_subset(subset);
 		bool use_subset = (subset_elements.size() > 0);
-
 		while (iter != itemsAll.end())
 		{
 			if (use_subset == false || subset_contains(subset_elements, iter->first)) {
@@ -115,10 +114,11 @@ char* memory_bank::find_or(string metadata, string subset)
 			}
 			iter++;
 		}
-		return (char*)response.c_str();
+
+		return response;
 	}
 
-char* memory_bank::find_and(string metadata, string subset)
+string memory_bank::find_and(string metadata, string subset)
 {
 	map<string, metadata_search_instruction> metadata_map = parse_metadata_search(metadata);
 
@@ -162,7 +162,7 @@ char* memory_bank::find_and(string metadata, string subset)
 
 		iter++;
 	}
-	return (char*)response.c_str();
+	return response;
 }
 
 bool memory_bank::remove(string identifier)

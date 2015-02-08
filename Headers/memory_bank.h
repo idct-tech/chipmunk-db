@@ -30,8 +30,8 @@ public:
 	vector<journal_entry> journal;
 	memory_bank();
 	bool add(string identifier, string metadata, byte* data, size_t data_length);
-	char* find_or(string metadata, string subset);
-	char* find_and(string metadata, string subset);
+	string find_or(string metadata, string subset);
+	string find_and(string metadata, string subset);
 	bool remove(string identifier);
 	memory_entry get(string identifier);
 };
