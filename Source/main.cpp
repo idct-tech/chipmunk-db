@@ -11,6 +11,11 @@ int main(int argc, char *argv[]) {
 	logger::log(" ! Started...");
 	memory_dispatcher::load();
 
+	if (argc > 0) {
+		int port = atoi(argv[1]);
+		memory_dispatcher::port = port;
+	}
+
 	boost::thread workerThread(&memory_dispatcher::saverFunc);
 	boost::thread listenerThread(&memory_dispatcher::listenerFunc, "started");
 

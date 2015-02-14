@@ -3,6 +3,7 @@
 memory_bank memory_dispatcher::main_memory;
 map<int,queue<int> > memory_dispatcher::sockets_waiting;
 int memory_dispatcher::waiting;
+int port = 8906;
 deque<boost::thread*> memory_dispatcher::worker_threads;
 
 void memory_dispatcher::listenerFunc(string a) {
@@ -26,7 +27,7 @@ void memory_dispatcher::listenerFunc(string a) {
 		bzero(&servaddr, sizeof(servaddr));
 		servaddr.sin_family = AF_INET;
 		servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-		servaddr.sin_port = htons(8906);
+		servaddr.sin_port = htons(memory_dispatcher::port);
 		bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
 		logger::log("listening...");
 		listen(sockfd, 1);

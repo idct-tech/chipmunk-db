@@ -32,6 +32,8 @@ class memory_dispatcher {
 		static void userHandler(int worker);
 		static void listenerFunc(string a);
 
+		static int port;
+
 		static map<int,queue<int> > sockets_waiting;
 		static int waiting;
 		static deque<boost::thread*> worker_threads;
