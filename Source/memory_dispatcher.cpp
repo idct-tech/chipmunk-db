@@ -3,7 +3,7 @@
 memory_bank memory_dispatcher::main_memory;
 map<int,queue<int> > memory_dispatcher::sockets_waiting;
 int memory_dispatcher::waiting;
-int port = 8906;
+int memory_dispatcher::port = 8906;
 deque<boost::thread*> memory_dispatcher::worker_threads;
 
 void memory_dispatcher::listenerFunc(string a) {
