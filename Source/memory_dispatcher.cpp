@@ -6,6 +6,9 @@ int memory_dispatcher::waiting;
 int memory_dispatcher::port = 8906;
 deque<boost::thread*> memory_dispatcher::worker_threads;
 
+boost::mutex m_mutex; // The mutex to synchronise on
+boost::condition_variable m_cond; // The condition to wait for
+
 void memory_dispatcher::listenerFunc(string a) {
 
 		waiting = 0;
@@ -28,7 +31,7 @@ void memory_dispatcher::listenerFunc(string a) {
 		servaddr.sin_family = AF_INET;
 		servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
 		servaddr.sin_port = htons(memory_dispatcher::port);
-		bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+		::bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
 		logger::log("listening...");
 		listen(sockfd, 1);
 		int current_worker = 0;
@@ -46,10 +49,18 @@ void memory_dispatcher::listenerFunc(string a) {
 				}
 				else {
 					waiting++;
+
+					// Acquire lock on the queue
+					boost::unique_lock<boost::mutex> lock(m_mutex);
+
+
+
 					sockets_waiting[current_worker++].push(sock_connect);
 					if (current_worker >= worker_threads) {
 						current_worker = 0;
 					}
+
+					m_cond.notify_one();
 				}
 			}
 			catch (...) {
@@ -144,7 +155,8 @@ void memory_dispatcher::send_data(int sockfd, byte* data, int len) {
 void memory_dispatcher::userHandler(int worker)
 {
 	while(true) {
-		while (sockets_waiting[worker].empty() == true) {}
+		boost::unique_lock<boost::mutex> lock(m_mutex);
+		while (sockets_waiting[worker].empty() == true) { m_cond.wait(lock); }
 		int sockfd = sockets_waiting[worker].front();
 		sockets_waiting[worker].pop();
 		logger::log("WORKER THREAD running: " + logger::itos(sockfd) + " WAITING: " + logger::itos(waiting--));

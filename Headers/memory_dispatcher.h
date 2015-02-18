@@ -21,6 +21,9 @@
 #define INPUT_BUFFER 1024
 
 using namespace std;
+using namespace boost;
+using namespace boost::this_thread;
+
 
 class memory_dispatcher {
 
@@ -39,4 +42,6 @@ class memory_dispatcher {
 		static deque<boost::thread*> worker_threads;
 
 		static memory_bank main_memory;
+
+
 };
